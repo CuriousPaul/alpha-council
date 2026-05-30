@@ -101,19 +101,14 @@ const testimonials = [
 
 const apiPartners = [
   {
-    name: "ApiFuse",
-    mark: "AF",
-    role: "Unified API gateway"
-  },
-  {
     name: "CryptoQuant",
     mark: "CQ",
-    role: "Market data via ApiFuse"
+    role: "On-chain and market data API"
   },
   {
-    name: "Telegram",
-    mark: "TG",
-    role: "Risk alerts via ApiFuse"
+    name: "cocoun",
+    mark: "co",
+    role: "AI Council and Poll API"
   }
 ];
 
