@@ -187,13 +187,13 @@ export function App() {
       }
       if (!result || result.status !== "completed") throw new Error("Analysis did not complete");
       setAnalysis(result);
-      setStatus(
+      const dataStatus =
         result.source === "apifuse"
           ? "ApiFuse live"
           : result.source === "cryptoquant"
             ? "CryptoQuant live"
-            : "Demo data mode"
-      );
+            : "Demo data mode";
+      setStatus(`${dataStatus} · ${result.council_source === "cocoun" ? "cocoun live" : "local council"}`);
       const nextRule = result.telegram_alert_rule || (await getTelegramAlertRule());
       setTelegramRule(nextRule);
       setTelegramRuleStatus(telegramStatusText(nextRule));

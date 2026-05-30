@@ -45,6 +45,13 @@ export type Analysis = {
   created_at: string;
   source?: "demo" | "cryptoquant" | "apifuse";
   warning?: string;
+  council_warning?: string;
+  council_source?: "local" | "cocoun";
+  cocoun?: {
+    predictions: Record<string, unknown>;
+    scores: Record<string, number>;
+    rationale: string;
+  };
   asset: string;
   exchange: string;
   timeframe: string;

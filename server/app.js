@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { fetchMarketData } from "./cryptoQuantClient.js";
 import { analyzeSignals } from "./signalEngine.js";
 import { runCouncil } from "./council.js";
+import { hasCocounKey, runCocounCouncil } from "./cocounClient.js";
 import { createDefaultAlertRule, evaluateTelegramAlert, normalizeAlertRule } from "./telegram.js";
 
 export const app = express();
@@ -21,7 +22,15 @@ async function completeAnalysis(id, request) {
       lookbackDays: request.lookback_days || 90
     });
     const signalSummary = analyzeSignals(marketData);
-    const council = runCouncil(signalSummary);
+    const localCouncil = runCouncil(signalSummary);
+    let council = localCouncil;
+    let councilWarning;
+    try {
+      council = await runCocounCouncil(signalSummary, localCouncil);
+    } catch (error) {
+      councilWarning = error instanceof Error ? error.message : "cocoun council failed";
+      council = { ...localCouncil, council_source: "local" };
+    }
     const activeTelegramRule = request.telegram_alert_rule
       ? normalizeAlertRule(request.telegram_alert_rule, telegramAlertRule)
       : telegramAlertRule;
@@ -32,6 +41,7 @@ async function completeAnalysis(id, request) {
       created_at: new Date().toISOString(),
       source: marketData.source,
       warning: marketData.warning,
+      council_warning: councilWarning,
       ...signalSummary,
       ...council
     };
@@ -68,7 +78,8 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "alpha-council-api",
-    apifuse: Boolean(process.env.APIFUSE_API_KEY)
+    apifuse: Boolean(process.env.APIFUSE_API_KEY),
+    cocoun: hasCocounKey()
   });
 });
 

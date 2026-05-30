@@ -20,6 +20,7 @@ Production: https://alpha-council-five-brown.vercel.app
 - Vercel static frontend and serverless API
 - ApiFuse gateway client for external API calls
 - CryptoQuant-style market data integration path
+- cocoun MCP integration for council prediction
 - Telegram Bot API integration path
 
 ## Local Development
@@ -42,6 +43,8 @@ APIFUSE_API_KEY=
 APIFUSE_CRYPTOQUANT_PROVIDER_ID=cryptoquant
 APIFUSE_TELEGRAM_PROVIDER_ID=
 APIFUSE_TELEGRAM_SEND_MESSAGE_OPERATION=
+COCOUN_API_KEY=
+COUNCIL_MCP_URL=https://asia-northeast3-cocouns-v.cloudfunctions.net/mcp
 CRYPTOQUANT_API_KEY=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
