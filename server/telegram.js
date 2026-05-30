@@ -1,3 +1,5 @@
+import { callApiFuse, hasApiFuseKey } from "./apiFuseClient.js";
+
 const defaultRule = {
   enabled: false,
   direction: "above",
@@ -64,6 +66,38 @@ function buildTelegramText(analysis, rule) {
 }
 
 async function sendTelegramMessage(text, chatId) {
+  if (hasApiFuseKey()) {
+    const providerId = process.env.APIFUSE_TELEGRAM_PROVIDER_ID;
+    const operationId = process.env.APIFUSE_TELEGRAM_SEND_MESSAGE_OPERATION;
+
+    if (!providerId || !operationId) {
+      return {
+        status: "demo",
+        delivered: false,
+        message: "ApiFuse key is configured. Set APIFUSE_TELEGRAM_PROVIDER_ID and APIFUSE_TELEGRAM_SEND_MESSAGE_OPERATION to send real Telegram alerts through ApiFuse."
+      };
+    }
+
+    try {
+      await callApiFuse(providerId, operationId, {
+        chat_id: chatId || process.env.TELEGRAM_CHAT_ID,
+        text,
+        disable_web_page_preview: true
+      });
+      return {
+        status: "sent",
+        delivered: true,
+        message: "Telegram alert sent through ApiFuse"
+      };
+    } catch (error) {
+      return {
+        status: "failed",
+        delivered: false,
+        message: error instanceof Error ? error.message : "ApiFuse Telegram send failed"
+      };
+    }
+  }
+
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const targetChatId = chatId || process.env.TELEGRAM_CHAT_ID;
 

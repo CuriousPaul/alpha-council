@@ -65,7 +65,11 @@ async function completeAnalysis(id, request) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "alpha-council-api" });
+  res.json({
+    ok: true,
+    service: "alpha-council-api",
+    apifuse: Boolean(process.env.APIFUSE_API_KEY)
+  });
 });
 
 app.post("/api/analyze", async (req, res) => {

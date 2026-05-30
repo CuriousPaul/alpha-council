@@ -43,7 +43,7 @@ export type Analysis = {
   analysis_id: string;
   status: "running" | "completed" | "failed";
   created_at: string;
-  source?: "demo" | "cryptoquant";
+  source?: "demo" | "cryptoquant" | "apifuse";
   warning?: string;
   asset: string;
   exchange: string;

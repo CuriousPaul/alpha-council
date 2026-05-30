@@ -1,4 +1,5 @@
 import { sampleMarketData } from "./sampleData.js";
+import { callApiFuse, hasApiFuseKey } from "./apiFuseClient.js";
 
 const endpointMap = {
   btc_top10_inflow: "/v1/btc/exchange-flows/inflow",
@@ -7,6 +8,17 @@ const endpointMap = {
   estimated_leverage_ratio: "/v1/btc/market-indicator/estimated-leverage-ratio",
   mvrv: "/v1/btc/market-indicator/mvrv",
   stablecoin_exchange_reserve: "/v1/stablecoin/exchange-flows/reserve"
+};
+
+const apiFuseOperationMap = {
+  btc_top10_inflow: process.env.APIFUSE_CQ_BTC_TOP10_INFLOW_OPERATION || "btc-exchange-flows-inflow",
+  btc_exchange_netflow: process.env.APIFUSE_CQ_BTC_NETFLOW_OPERATION || "btc-exchange-flows-netflow",
+  btc_exchange_reserve: process.env.APIFUSE_CQ_BTC_RESERVE_OPERATION || "btc-exchange-flows-reserve",
+  estimated_leverage_ratio:
+    process.env.APIFUSE_CQ_ESTIMATED_LEVERAGE_RATIO_OPERATION || "btc-market-indicator-estimated-leverage-ratio",
+  mvrv: process.env.APIFUSE_CQ_MVRV_OPERATION || "btc-market-indicator-mvrv",
+  stablecoin_exchange_reserve:
+    process.env.APIFUSE_CQ_STABLECOIN_RESERVE_OPERATION || "stablecoin-exchange-flows-reserve"
 };
 
 function toNumber(value) {
@@ -75,7 +87,52 @@ async function fetchMetric(metricName, options) {
   return rows;
 }
 
+async function fetchApiFuseMetric(metricName, options) {
+  const providerId = process.env.APIFUSE_CRYPTOQUANT_PROVIDER_ID || "cryptoquant";
+  const operationId = apiFuseOperationMap[metricName];
+  const payload = {
+    asset: "BTC",
+    exchange: options.exchange,
+    window: "day",
+    limit: options.lookbackDays || 90,
+    format: "json"
+  };
+
+  const result = await callApiFuse(providerId, operationId, payload);
+  const rows = normalizeRows(metricName, result);
+  if (rows.length < 14) throw new Error(`ApiFuse ${metricName} returned too few rows`);
+  return rows;
+}
+
 export async function fetchMarketData({ asset = "BTC", exchange = "all_exchange", lookbackDays = 90 } = {}) {
+  if (hasApiFuseKey() && asset === "BTC") {
+    try {
+      const entries = await Promise.all(
+        Object.keys(apiFuseOperationMap).map(async (metricName) => [
+          metricName,
+          await fetchApiFuseMetric(metricName, { exchange, lookbackDays })
+        ])
+      );
+
+      return {
+        source: "apifuse",
+        asset,
+        exchange,
+        generatedAt: new Date().toISOString(),
+        metrics: Object.fromEntries(entries)
+      };
+    } catch (error) {
+      return {
+        ...sampleMarketData,
+        asset,
+        exchange,
+        source: "demo",
+        generatedAt: new Date().toISOString(),
+        warning: error instanceof Error ? error.message : "ApiFuse CryptoQuant gateway failed"
+      };
+    }
+  }
+
   if (!process.env.CRYPTOQUANT_API_KEY || asset !== "BTC") {
     return { ...sampleMarketData, asset, exchange, source: "demo", generatedAt: new Date().toISOString() };
   }

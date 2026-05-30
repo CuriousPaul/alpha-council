@@ -18,7 +18,8 @@ Production: https://alpha-council-five-brown.vercel.app
 - React + TypeScript + Vite
 - Node.js + Express
 - Vercel static frontend and serverless API
-- CryptoQuant-style market data client
+- ApiFuse gateway client for external API calls
+- CryptoQuant-style market data integration path
 - Telegram Bot API integration path
 
 ## Local Development
@@ -37,10 +38,16 @@ API: http://localhost:8787
 The app runs without secrets in demo data mode. Add these for live integrations:
 
 ```bash
+APIFUSE_API_KEY=
+APIFUSE_CRYPTOQUANT_PROVIDER_ID=cryptoquant
+APIFUSE_TELEGRAM_PROVIDER_ID=
+APIFUSE_TELEGRAM_SEND_MESSAGE_OPERATION=
 CRYPTOQUANT_API_KEY=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 ```
+
+ApiFuse gateway calls use `POST /v1/{providerId}/{operationId}`. If a provider or operation is not enabled in ApiFuse yet, the app falls back to demo data and reports the gateway warning in the API response.
 
 ## Build
 

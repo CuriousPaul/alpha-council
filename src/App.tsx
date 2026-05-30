@@ -101,14 +101,19 @@ const testimonials = [
 
 const apiPartners = [
   {
-    name: "CryptoQuant",
-    mark: "CQ",
-    role: "On-chain and market data API"
+    name: "ApiFuse",
+    mark: "AF",
+    role: "Unified API gateway"
   },
   {
-    name: "cocoun",
-    mark: "co",
-    role: "AI Council and Poll API"
+    name: "CryptoQuant",
+    mark: "CQ",
+    role: "Market data via ApiFuse"
+  },
+  {
+    name: "Telegram",
+    mark: "TG",
+    role: "Risk alerts via ApiFuse"
   }
 ];
 
@@ -182,7 +187,13 @@ export function App() {
       }
       if (!result || result.status !== "completed") throw new Error("Analysis did not complete");
       setAnalysis(result);
-      setStatus(result.source === "cryptoquant" ? "CryptoQuant live" : "Demo data mode");
+      setStatus(
+        result.source === "apifuse"
+          ? "ApiFuse live"
+          : result.source === "cryptoquant"
+            ? "CryptoQuant live"
+            : "Demo data mode"
+      );
       const nextRule = result.telegram_alert_rule || (await getTelegramAlertRule());
       setTelegramRule(nextRule);
       setTelegramRuleStatus(telegramStatusText(nextRule));
