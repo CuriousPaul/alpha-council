@@ -190,8 +190,12 @@ export function App() {
       const dataStatus =
         result.source === "apifuse"
           ? "ApiFuse live"
+          : result.source === "apifuse_partial"
+            ? "ApiFuse partial"
           : result.source === "cryptoquant"
             ? "CryptoQuant live"
+            : result.source === "cryptoquant_partial"
+              ? "CryptoQuant partial"
             : "Demo data mode";
       setStatus(`${dataStatus} · ${result.council_source === "cocoun" ? "cocoun live" : "local council"}`);
       const nextRule = result.telegram_alert_rule || (await getTelegramAlertRule());

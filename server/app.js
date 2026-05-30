@@ -79,6 +79,7 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     service: "alpha-council-api",
     apifuse: Boolean(process.env.APIFUSE_API_KEY),
+    cryptoquant: Boolean(process.env.CRYPTOQUANT_API_KEY),
     cocoun: hasCocounKey()
   });
 });

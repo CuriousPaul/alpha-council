@@ -58,7 +58,32 @@ function normalizeRows(metricName, payload) {
       value: pickMetricValue(metricName, row)
     }))
     .filter((row) => row.value !== null)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(-90);
+}
+
+async function fetchMetricSet(metricNames, fetcher, options) {
+  const results = await Promise.allSettled(metricNames.map(async (metricName) => [metricName, await fetcher(metricName, options)]));
+  const entries = [];
+  const warnings = [];
+  let liveCount = 0;
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      entries.push(result.value);
+      liveCount += 1;
+    } else {
+      const metricName = metricNames[entries.length + warnings.length];
+      entries.push([metricName, sampleMarketData.metrics[metricName]]);
+      warnings.push(result.reason instanceof Error ? result.reason.message : `${metricName} fetch failed`);
+    }
+  }
+
+  return {
+    metrics: Object.fromEntries(entries),
+    liveCount,
+    warnings
+  };
 }
 
 async function fetchMetric(metricName, options) {
@@ -78,7 +103,8 @@ async function fetchMetric(metricName, options) {
   });
 
   if (!response.ok) {
-    throw new Error(`CryptoQuant ${metricName} failed with ${response.status}`);
+    const body = await response.text();
+    throw new Error(`CryptoQuant ${metricName} failed with ${response.status}: ${body.slice(0, 120)}`);
   }
 
   const payload = await response.json();
@@ -105,58 +131,66 @@ async function fetchApiFuseMetric(metricName, options) {
 }
 
 export async function fetchMarketData({ asset = "BTC", exchange = "all_exchange", lookbackDays = 90 } = {}) {
+  const warningNotes = [];
+
   if (hasApiFuseKey() && asset === "BTC") {
     try {
-      const entries = await Promise.all(
-        Object.keys(apiFuseOperationMap).map(async (metricName) => [
-          metricName,
-          await fetchApiFuseMetric(metricName, { exchange, lookbackDays })
-        ])
-      );
+      const metricNames = Object.keys(apiFuseOperationMap);
+      const fetched = await fetchMetricSet(metricNames, fetchApiFuseMetric, { exchange, lookbackDays });
 
-      return {
-        source: "apifuse",
-        asset,
-        exchange,
-        generatedAt: new Date().toISOString(),
-        metrics: Object.fromEntries(entries)
-      };
+      if (fetched.liveCount > 0) {
+        return {
+          source: fetched.liveCount === metricNames.length ? "apifuse" : "apifuse_partial",
+          asset,
+          exchange,
+          generatedAt: new Date().toISOString(),
+          metrics: fetched.metrics,
+          warning: fetched.warnings.join(" | ") || undefined
+        };
+      }
+      warningNotes.push(fetched.warnings.join(" | ") || "ApiFuse CryptoQuant gateway returned no live metrics");
     } catch (error) {
-      return {
-        ...sampleMarketData,
-        asset,
-        exchange,
-        source: "demo",
-        generatedAt: new Date().toISOString(),
-        warning: error instanceof Error ? error.message : "ApiFuse CryptoQuant gateway failed"
-      };
+      warningNotes.push(error instanceof Error ? error.message : "ApiFuse CryptoQuant gateway failed");
     }
   }
 
   if (!process.env.CRYPTOQUANT_API_KEY || asset !== "BTC") {
-    return { ...sampleMarketData, asset, exchange, source: "demo", generatedAt: new Date().toISOString() };
-  }
-
-  try {
-    const entries = await Promise.all(
-      Object.keys(endpointMap).map(async (metricName) => [metricName, await fetchMetric(metricName, { exchange, lookbackDays })])
-    );
-
-    return {
-      source: "cryptoquant",
-      asset,
-      exchange,
-      generatedAt: new Date().toISOString(),
-      metrics: Object.fromEntries(entries)
-    };
-  } catch (error) {
     return {
       ...sampleMarketData,
       asset,
       exchange,
       source: "demo",
       generatedAt: new Date().toISOString(),
-      warning: error instanceof Error ? error.message : "CryptoQuant fetch failed"
+      warning: warningNotes.filter(Boolean).join(" | ") || undefined
     };
   }
+
+  try {
+    const metricNames = Object.keys(endpointMap);
+    const fetched = await fetchMetricSet(metricNames, fetchMetric, { exchange, lookbackDays });
+
+    if (fetched.liveCount > 0) {
+      return {
+        source: fetched.liveCount === metricNames.length ? "cryptoquant" : "cryptoquant_partial",
+        asset,
+        exchange,
+        generatedAt: new Date().toISOString(),
+        metrics: fetched.metrics,
+        warning: [...warningNotes, ...fetched.warnings].filter(Boolean).join(" | ") || undefined
+      };
+    }
+
+    warningNotes.push(...fetched.warnings);
+  } catch (error) {
+    warningNotes.push(error instanceof Error ? error.message : "CryptoQuant fetch failed");
+  }
+
+  return {
+    ...sampleMarketData,
+    asset,
+    exchange,
+    source: "demo",
+    generatedAt: new Date().toISOString(),
+    warning: warningNotes.filter(Boolean).join(" | ") || undefined
+  };
 }

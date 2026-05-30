@@ -80,6 +80,14 @@ function voteDistributionFromScores(scores) {
   return votes;
 }
 
+function reconcileFinalState(candidate, signalSummary, localState) {
+  const score = signalSummary.risk_score;
+  if (score >= 76) return "HIGH_RISK";
+  if (score >= 56 && candidate === "BULLISH") return localState;
+  if (score <= 30 && (candidate === "HIGH_RISK" || candidate === "BEARISH")) return localState;
+  return candidate;
+}
+
 export async function runCocounCouncil(signalSummary, localCouncil) {
   if (!hasCocounKey()) return { ...localCouncil, council_source: "local" };
 
@@ -96,7 +104,8 @@ export async function runCocounCouncil(signalSummary, localCouncil) {
   const scores = Object.fromEntries(
     labels.map((label) => [label, Number(predictions[label]?.agree ?? 0)])
   );
-  const finalState = Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || localCouncil.final_state;
+  const candidateState = Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || localCouncil.final_state;
+  const finalState = reconcileFinalState(candidateState, signalSummary, localCouncil.final_state);
   const topPrediction = predictions[finalState];
   const confidence = Math.max(localCouncil.confidence, Number(topPrediction?.confidence || 0) / 100);
   const vote_result = voteDistributionFromScores(scores);
